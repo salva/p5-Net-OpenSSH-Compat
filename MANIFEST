@@ -1,0 +1,6 @@
+Changes
+Makefile.PL
+MANIFEST
+README
+t/Net-OpenSSH-Compat.t
+lib/Net/OpenSSH/Compat.pm

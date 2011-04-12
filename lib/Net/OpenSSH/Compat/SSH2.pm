@@ -373,3 +373,40 @@ sub setstat {
 }
 
 1;
+
+=head1
+
+Net::OpenSSH::Compat::SSH2 - Net::SSH2 compatibility module for Net::OpenSSH
+
+=head1 SYNOPSIS
+
+  use Net::OpenSSH::Compat::SSH2 qw(:supplant);
+
+  use Net::SSH2;
+
+  my $ssh2 = Net::SSH2->new;
+  $ssh2->connect('host');
+  $ssh2->auth_publickey("jsmith",
+                        "/home/jsmith/.ssh/id_dsa.pub",
+                        "/home/jsmith/.ssh/id_dsa");
+  my $c = $ssh2->channel;
+  $c->exec("ls");
+  print while <$c>;
+
+  $c->close;
+  print "exit status: ", $c->exit_status, "\n";
+
+=head1 DESCRIPTION
+
+This is a work in progress.
+
+=head1 COPYRIGHT AND LICENSE
+
+Copyright (C) 2011 by Salvador FandiE<ntilde>o
+(sfandino@yahoo.com)
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.10.0 or,
+at your option, any later version of Perl 5 you may have available.
+
+=cut

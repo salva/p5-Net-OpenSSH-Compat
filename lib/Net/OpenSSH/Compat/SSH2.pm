@@ -1,5 +1,7 @@
 package Net::OpenSSH::Compat::SSH2;
 
+our $VERSION = '0.01';
+
 use strict;
 use warnings;
 
@@ -7,6 +9,41 @@ use Net::OpenSSH;
 use IO::Handle;
 use IO::Seekable;
 use File::Basename;
+
+require Exporter;
+our @ISA = qw(Exporter);
+
+use Net::OpenSSH::Compat::SSH2::Constants;
+
+our %EXPORT_TAGS;
+our @EXPORT_OK = @{$EXPORT_TAGS{all}};
+$EXPORT_TAGS{supplant} = [];
+
+my $supplant;
+
+sub import {
+    my $class = shift;
+    if (!$supplant and
+        $class eq __PACKAGE__ and
+        grep($_ eq ':supplant', @_)) {
+        $supplant = 1;
+        for my $end ('', qw(Channel SFTP Dir File)) {
+            my $this = __PACKAGE__;
+            my $pkg = "Net::SSH2";
+            my $file = "Net/SSH2";
+            if ($end) {
+                $this .= "::$end";
+                $pkg .= "::$end";
+                $file .= "/$end";
+            }
+            $INC{$file . '.pm'} = __FILE__;
+            no strict 'refs';
+            @{"${pkg}::ISA"} = ($this);
+        }
+    }
+
+    __PACKAGE__->export_to_level(1, @_);
+}
 
 sub new {
     my $class = shift;
@@ -46,6 +83,12 @@ sub auth_publickey {
     $cpt->_connect;
 }
 
+sub auth {
+    my $cpt = shift;
+    $cpt->{auth_args} = [@_];
+    $cpt->_connect;
+}
+
 sub auth_ok {
     my $cpt = shift;
     defined $cpt->{ssh};
@@ -55,7 +98,9 @@ sub _connect {
     my $cpt = shift;
     defined $cpt->{connect_args} or die "connect not called";
     my ($host, $port, %opts) = @{$cpt->{connect_args}};
-    my @args = (host => $host, port => $port);
+    my @args = (host => $host, port => $port,
+                timeout => delete($opts{Timeout}));
+    %opts and croak "unsupported option(s) given: ".join(", ", keys %opts);
     if ($cpt->{auth_password_args}) {
         my ($user, $passwd) = @{$cpt->{auth_password_args}};
         push @args, user => $user, passwd => $passwd;
@@ -118,7 +163,7 @@ our @ISA = qw(IO::Handle);
 sub _new {
     my ($class, $cpt) = @_;
     my $chan = $class->SUPER::new;
-    *$chan = { cpt => $cpt };
+    *$chan = { cpt => $cpt, state => 'new' };
     return $chan;
 }
 
@@ -138,6 +183,9 @@ sub setenv {
 sub _exec {
     my $chan = shift;
     my $ch = *{$chan}{HASH};
+
+    # TODO: check state is 'new'
+
     my %opts = %{ref $_[0] ? shift : {}};
     $opts{stdinout_socket} = 1;
     my $ssh = $ch->{cpt}{ssh};
@@ -177,9 +225,18 @@ sub close {
     my $ch = *{$chan}{HASH};
     $chan->SUPER::close;
     $ch->{err} and close($ch->{err});
+    warn "reaping $ch->{pid}";
     waitpid $ch->{pid}, 0;
     $ch->{exit_status} = ($? >> 8);
     1;
+}
+
+sub DESTROY {
+    my $self = shift;
+    # TODO: call close if not already closed
+
+    warn "$self->DESTROY()";
+    $self->SUPER::DESTROY;
 }
 
 sub wait_closed { shift->close }

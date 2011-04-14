@@ -8,10 +8,13 @@ use warnings;
 use Net::OpenSSH;
 use IO::Handle;
 use IO::Seekable;
-use File::Basename;
+use File::Basename ();
+use Fcntl ();
+use Carp ();
+use Scalar::Util ();
 
 require Exporter;
-our @ISA = qw(Exporter);
+our @ISA = qw(Exporter Net::OpenSSH::Compat::SSH2::Base);
 
 use Net::OpenSSH::Compat::SSH2::Constants;
 
@@ -45,17 +48,26 @@ sub import {
     __PACKAGE__->export_to_level(1, @_);
 }
 
+sub version { "1.2.6-emulated" }
+
 sub new {
     my $class = shift;
-    my $cpt = {};
+    my $cpt = { state => 'new',
+                error => [0, "", ""],
+                blocking => 1,
+                channels => [] };
     bless $cpt, $class;
+}
+
+sub _free_channels {
+    my $cs = shift->{channels};
+    @$cs = grep defined, @$cs;
+    Scalar::Util::weaken $_ for @$cs;
 }
 
 sub banner {}
 
-sub version { "1.2.6-emulated" }
-
-sub error { 0 }
+sub error { wantarray ? @{shift->{error}} : shift->{error}[0] }
 
 sub sock { undef }
 
@@ -69,84 +81,131 @@ sub auth_list {
 sub connect {
     my $cpt = shift;
     $cpt->{connect_args} = [@_];
+    $cpt->{state} = 'connected*';
 }
 
-sub auth_password {
-    my $cpt = shift;
-    $cpt->{auth_password_args} = [@_];
-    $cpt->_connect;
-}
+sub auth_ok { shift->{state} eq 'ok' }
 
-sub auth_publickey {
-    my $cpt = shift;
-    $cpt->{auth_publickey_args} = [@_];
-    $cpt->_connect;
-}
+sub auth_password  { shift->_connect(auth_password    => @_) }
+sub auth_publickey { shift->_connect(auth_publickey => @_) }
+sub auth           { shift->_connect(auth           => @_) }
 
-sub auth {
-    my $cpt = shift;
-    $cpt->{auth_args} = [@_];
-    $cpt->_connect;
-}
-
-sub auth_ok {
-    my $cpt = shift;
-    defined $cpt->{ssh};
-}
 
 sub _connect {
     my $cpt = shift;
-    defined $cpt->{connect_args} or die "connect not called";
+    $cpt->_check_state('connected*') or return;
+
     my ($host, $port, %opts) = @{$cpt->{connect_args}};
     my @args = (host => $host, port => $port,
                 timeout => delete($opts{Timeout}));
-    %opts and croak "unsupported option(s) given: ".join(", ", keys %opts);
-    if ($cpt->{auth_password_args}) {
-        my ($user, $passwd) = @{$cpt->{auth_password_args}};
+    %opts and Carp::croak "unsupported option(s) given: ".join(", ", keys %opts);
+
+    my $auth = shift;
+    $cpt->{auth_method} ||= $auth;
+    $cpt->{auth_args} ||= [@_];
+
+    if ($auth eq 'auth_password') {
+        my ($user, $passwd) = @_;
         push @args, user => $user, passwd => $passwd;
     }
-    elsif ($cpt->{auth_publickey_args}) {
-        my ($user, undef, $private) = @{$cpt->{auth_publickey_args}};
+    elsif ($auth eq 'auth_publickey') {
+        my ($user, undef, $private) = @_;
         push @args, user => $user, key_path => $private;
     }
+    elsif ($auth eq 'auth') {
+        my %opts = @_;
+        my $rank = delete $opts{rank};
+        $rank = 'publickey,password' unless defined $rank;
+        my $username = delete $opts{username};
+        my $password = delete $opts{password};
+        my $publickey = delete $opts{publickey};
+        my $privatekey = delete $opts{privatekey};
+        my $hostname = delete $opts{hostname};
+        %opts and Carp::croak "unsupported option(s) given: ".join(", ", keys %opts);
+        for my $method (split /\s*,\s*/, $rank) {
+            $cpt->{state} = 'connected*';
+            if ($method eq 'publickey') {
+                if (defined $privatekey) {
+                    $cpt->_connect(auth_publickey => $username, $publickey, $privatekey)
+                }
+            }
+            elsif ($method eq 'password') {
+                if (defined $password) {
+                    $cpt->_connect(auth_password => $username, $password);
+                }
+            }
+            $cpt->{state} eq 'ok' and return 1;
+        }
+        return;
+    }
     else {
-        die "unsupported login method";
+        Carp::croak "unsupported login method";
     }
     my $ssh = Net::OpenSSH->new(@args);
-    $cpt->{ssh} = $ssh;
-    1;
+    if ($ssh->error) {
+        $cpt->_set_error(LIBSSH2_ERROR_SOCKET_DISCONNECT => $ssh->error);
+        $cpt->{state} = 'failed';
+        return
+    }
+    else {
+        $cpt->{ssh} = $ssh;
+        $cpt->{state} = 'ok';
+        return 1
+    }
+
 }
 
-sub tcpip { die "method tcpip not implemented" }
-sub listen { die "method listen not implemented" }
-sub poll { die "method poll not implemented" }
+sub tcpip { Carp::croak "method tcpip not implemented" }
+sub listen { Carp::croak "method listen not implemented" }
+sub poll { Carp::croak "method poll not implemented" }
 
 sub debug {}
 
-sub blocking { warn "blocking method not implemented" }
+sub blocking {
+    my ($cpt, $blocking) = @_;
+    if ($cpt->{blocking} xor $blocking) {
+        $cpt->{blocking} = $blocking;
+        $cpt->_free_channels;
+        $_->_blocking($blocking) for @{$cpt->{channels}};
+    }
+    $blocking;
+}
 
 sub scp_get {
     my ($cpt, $remote, $local) = @_;
     unless (defined $local) {
-        $local = basename $remote;
+        $local = File::Basename::basename($remote);
     }
     my $ssh = $cpt->{ssh};
     $ssh->scp_get($remote, $local);
+    if ($ssh->error) {
+        $cpt->_set_error(LIBSSH2_ERROR_SCP_PROTOCOL => "scp_get failed");
+        return
+    }
+    1
 }
 
 sub scp_put {
     my ($cpt, $local, $remote) = @_;
     unless (defined $remote) {
-        $remote = basename $local;
+        $remote = File::Basename::basename($local);
     }
     my $ssh = $cpt->{ssh};
     $ssh->scp_put($local, $remote);
+    if ($ssh->error) {
+        $cpt->_set_error(LIBSSH2_ERROR_SCP_PROTOCOL => "scp_get failed");
+        return
+    }
+    1
 }
 
 sub channel {
     my $cpt = shift;
     my $class = join('::', ref($cpt), 'Channel');
-    $class->_new($cpt);
+    my $chan = $class->_new($cpt);
+    push @{$cpt->{channels}}, $chan;
+    $cpt->_free_channels;
+    $chan;
 }
 
 sub sftp {
@@ -155,37 +214,35 @@ sub sftp {
     $class->_new($cpt);
 }
 
-
-
 package Net::OpenSSH::Compat::SSH2::Channel;
-our @ISA = qw(IO::Handle);
+our @ISA = qw(IO::Handle Net::OpenSSH::Compat::SSH2::Base);
 
 sub _new {
     my ($class, $cpt) = @_;
     my $chan = $class->SUPER::new;
-    *$chan = { cpt => $cpt, state => 'new' };
+    *$chan = { cpt => $cpt,
+               state => 'new',
+               error => [0, "", ""],
+               blocking => 1 };
     return $chan;
 }
 
-sub ext_data {
-    my $ch = *{shift @_}{HASH};
-    my $mode = shift;
-    $ch->{ext_data} = $mode;
-}
+sub _hash { *{shift @_}{HASH} }
+
+sub ext_data { $_[0]->_hash->{ext_data} = $_[1] }
 
 sub setenv {
-    my $ch = *{shift @_}{HASH};
-    my %env = @_;
+    my $ch = shift->_hash;
     my $env = $ch->{env} ||= {};
     %$env = (%$env, @_);
+    1;
 }
 
 sub _exec {
     my $chan = shift;
-    my $ch = *{$chan}{HASH};
+    $chan->_check_state('new') or return;
 
-    # TODO: check state is 'new'
-
+    my $ch = $chan->_hash;
     my %opts = %{ref $_[0] ? shift : {}};
     $opts{stdinout_socket} = 1;
     my $ssh = $ch->{cpt}{ssh};
@@ -198,15 +255,19 @@ sub _exec {
             $opts{stderr_to_stdout} = 1;
         }
         elsif ($mode ne 'normal') {
-            die "bad ext_data mode";
+            Carp::croak "bad ext_data mode";
         }
     }
     local %ENV = (%ENV, %{$ch->{env}}) if $ch->{env};
     my ($io, undef, $err, $pid) = $ssh->open_ex(\%opts, @_);
     $chan->fdopen($io, 'r+');
+    $chan->autoflush(1);
+    binmode $chan;
     $ch->{err} = $err;
     $ch->{pid} = $pid;
-    1;
+    $ch->{state} = 'exec';
+    $chan->_blocking($ch->{cpt}{blocking});
+    return 1;
 }
 
 sub exec { shift->_exec(@_) }
@@ -222,35 +283,48 @@ sub send_eof {
 
 sub close {
     my $chan = shift;
-    my $ch = *{$chan}{HASH};
+    $chan->_check_state('exec') or return;
+    my $ch = $chan->_hash;
     $chan->SUPER::close;
     $ch->{err} and close($ch->{err});
-    warn "reaping $ch->{pid}";
+    # warn "reaping $ch->{pid}";
     waitpid $ch->{pid}, 0;
     $ch->{exit_status} = ($? >> 8);
+    $ch->{state} = 'closed';
     1;
 }
 
 sub DESTROY {
-    my $self = shift;
-    # TODO: call close if not already closed
-
-    warn "$self->DESTROY()";
-    $self->SUPER::DESTROY;
+    my $chan = shift;
+    my $ch = $chan->_hash;
+    $chan->close if $ch->{state} eq 'exec';
+    $chan->SUPER::DESTROY;
 }
 
-sub wait_closed { shift->close }
+sub wait_closed {
+    my $chan = shift;
+    my $ch = $chan->_hash;
+    shift->close if $ch->{state} eq 'exec';
+    $ch->{state} eq 'closed';
+}
 
 sub exit_status {
-    my $ch = *{shift @_}{HASH};
-    $ch->{exit_status};
+    my $chan = shift;
+    $chan->_check_state('closed') or return;
+    $chan->_hash->{exit_status};
 }
 
-sub blocking {
-    my $ch = *{shift @_}{HASH};
-    $ch->{cpt}->blocking;
-}
+sub blocking { shift->_hash->{cpt}->blocking(@_) }
 
+sub _blocking {
+    my ($chan, $blocking) = @_;
+    my $ch = *{$chan}{HASH};
+    if (($ch->{state} eq 'exec') and
+        ($blocking xor $ch->{blocking})) {
+        $ch->{blocking} = $blocking;
+        $chan->SUPER::blocking($blocking);
+    }
+}
 
 package Net::OpenSSH::Compat::SSH2::SFTP;
 
@@ -372,7 +446,7 @@ package Net::OpenSSH::Compat::SSH2::Dir;
 sub _new {
     my ($class, $sw, $dh) = @_;
     my $dw = { dh => $dh,
-                 sw => $sw };
+               sw => $sw };
     bless $dw, $class;
 }
 
@@ -428,6 +502,53 @@ sub setstat {
     my $a = $e2a->(@_);
     $sftp->fsetstat($fh, $a);
 }
+
+package Net::OpenSSH::Compat::SSH2::Base;
+
+sub _entry_method {
+    my $n = 1;
+    my $last = 'unknown';
+    while (1) {
+        my $sub = (caller $n++)[3];
+        $sub =~ /^Net::OpenSSH::Compat::SSH2::(?:\w+::)?(\w+)$/ or last;
+        $last = $1;
+    }
+    $last;
+};
+
+
+
+sub _hash { shift }
+
+sub _parent { undef }
+
+sub error {
+    my $self = shift->_hash;
+    wantarray ? @{$self->{error}} : $self->{error}[0]
+}
+
+sub _set_error {
+    my ($self, $error, $msg) = @_;
+    my $n = eval $error;
+    my $parent = $self->_parent;
+    $parent->_set_error(@_) if $parent;
+    @{$self->_hash->{error}} = ($n, $error, $msg);
+}
+
+sub _bad_state_error { 'LIBSSH2_ERROR_SOCKET_SEND' }
+
+sub _check_state {
+    my ($self, $expected) = @_;
+    my $state = $self->_state;
+    return 1 if $expected eq $state;
+    my $method = $self->_entry_method;
+    my $class = ref $self;
+    $self->_set_error($self->_bad_state_error,
+                      qq($class object can't do "$method" on state $state));
+    return
+}
+
+sub _state { shift->_hash->{state} }
 
 1;
 

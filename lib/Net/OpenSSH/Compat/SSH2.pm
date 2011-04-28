@@ -220,6 +220,7 @@ our @ISA = qw(IO::Handle Net::OpenSSH::Compat::SSH2::Base);
 sub _new {
     my ($class, $cpt) = @_;
     my $chan = $class->SUPER::new;
+
     *$chan = { cpt => $cpt,
                state => 'new',
                error => [0, "", ""],
@@ -247,16 +248,15 @@ sub _exec {
     $opts{stdinout_socket} = 1;
     my $ssh = $ch->{cpt}{ssh};
     my $mode = $ch->{ext_data};
-    if (defined $mode) {
-        if ($mode eq 'ignore') {
-            $opts{stderr_discard} = 1;
-        }
-        elsif ($mode eq 'merge') {
-            $opts{stderr_to_stdout} = 1;
-        }
-        elsif ($mode ne 'normal') {
-            Carp::croak "bad ext_data mode";
-        }
+    $mode ||= 'normal';
+    if ($mode eq 'ignore') {
+        $opts{stderr_discard} = 1;
+    }
+    elsif ($mode eq 'merge') {
+        $opts{stderr_to_stdout} = 1;
+    }
+    else {
+        $opts{stderr_pipe} = 1;
     }
     local %ENV = (%ENV, %{$ch->{env}}) if $ch->{env};
     my ($io, undef, $err, $pid) = $ssh->open_ex(\%opts, @_);
@@ -318,13 +318,44 @@ sub blocking { shift->_hash->{cpt}->blocking(@_) }
 
 sub _blocking {
     my ($chan, $blocking) = @_;
-    my $ch = *{$chan}{HASH};
+    my $ch = $chan->_hash;
     if (($ch->{state} eq 'exec') and
         ($blocking xor $ch->{blocking})) {
         $ch->{blocking} = $blocking;
         $chan->SUPER::blocking($blocking);
+        my $err = $chan->_hash->{err};
+        $err->blocking($blocking) if $err;
     }
 }
+
+sub write {
+    my ($chan, $data, $ext) = @_;
+    $chan->_check_state('exec') or return;
+    if ($ext) {
+        # silently discard data sent to ext channel
+        return length $data;
+    }
+    else {
+        $chan->syswrite($data);
+    }
+}
+
+sub read {
+    my ($chan, undef, $size, $ext) = @_;
+    $chan->_check_state('exec') or return;
+    my $ch = $chan->_hash;
+    my $fd;
+    if ($ext) {
+        $fd = $ch->{err} or
+            $chan->_set_error(LIBSSH2_ERROR_CHANNEL_UNKNOWN => 'no ext channel available');
+    }
+    else {
+        $fd = $chan;
+    }
+    sysread($fd, $_[1], $size || 0)
+}
+
+sub flush { 0 }
 
 package Net::OpenSSH::Compat::SSH2::SFTP;
 
@@ -514,9 +545,7 @@ sub _entry_method {
         $last = $1;
     }
     $last;
-};
-
-
+}
 
 sub _hash { shift }
 

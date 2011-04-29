@@ -22,6 +22,10 @@ our %EXPORT_TAGS;
 our @EXPORT_OK = @{$EXPORT_TAGS{all}};
 $EXPORT_TAGS{supplant} = [];
 
+our %DEFAULTS = (connection => [],
+                 channel    => []
+                 sftp       => []);
+
 my $supplant;
 
 sub import {
@@ -42,13 +46,13 @@ sub import {
             $INC{$file . '.pm'} = __FILE__;
             no strict 'refs';
             @{"${pkg}::ISA"} = ($this);
+            ${"${pkg}::VERSION"} = __PACKAGE__->version;
         }
     }
-
     __PACKAGE__->export_to_level(1, @_);
 }
 
-sub version { "1.2.6-emulated" }
+sub version { "1.2.6 (".__PACKAGE__."-$VERSION)" }
 
 sub new {
     my $class = shift;
@@ -96,7 +100,8 @@ sub _connect {
     $cpt->_check_state('connected*') or return;
 
     my ($host, $port, %opts) = @{$cpt->{connect_args}};
-    my @args = (host => $host, port => $port,
+    my @args = (@{$DEFAULTS{connection}||[]},
+                host => $host, port => $port,
                 timeout => delete($opts{Timeout}));
     %opts and Carp::croak "unsupported option(s) given: ".join(", ", keys %opts);
 
@@ -242,10 +247,11 @@ sub setenv {
 sub _exec {
     my $chan = shift;
     $chan->_check_state('new') or return;
-
+    my $defs = $DEFAULTS{channel};
+    my %opts = ( ($defs     ? %$defs   : ()),
+                 (ref $_[0] ? %{$_[0]} : ()),
+                 stdinout_socket => 1 );
     my $ch = $chan->_hash;
-    my %opts = %{ref $_[0] ? shift : {}};
-    $opts{stdinout_socket} = 1;
     my $ssh = $ch->{cpt}{ssh};
     my $mode = $ch->{ext_data};
     $mode ||= 'normal';
@@ -361,9 +367,10 @@ package Net::OpenSSH::Compat::SSH2::SFTP;
 
 sub _new {
     my ($class, $cpt) = @_;
-    my $sftp = $cpt->{ssh}->sftp;
+    my $defs = $DEFAULTS{sftp};
+    my $sftp = $cpt->{ssh}->sftp($defs ? %$defs : ());
     my $sw = { cpt => $cpt,
-                 sftp => $sftp };
+               sftp => $sftp };
     bless $sw, $class;
 }
 
@@ -583,7 +590,7 @@ sub _state { shift->_hash->{state} }
 
 =head1
 
-Net::OpenSSH::Compat::SSH2 - Net::SSH2 compatibility module for Net::OpenSSH
+Net::OpenSSH::Compat::SSH2 - Net::OpenSSH adapter for Net::SSH2 API compatibility
 
 =head1 SYNOPSIS
 
@@ -605,12 +612,95 @@ Net::OpenSSH::Compat::SSH2 - Net::SSH2 compatibility module for Net::OpenSSH
 
 =head1 DESCRIPTION
 
-This is a work in progress.
+This module implements L<Net::SSH2> API on top of L<Net::OpenSSH>.
+
+After the module is loaded as...
+
+  use Net::OpenSSH::Compat::SSH2 qw(:supplant);
+
+it will supplant the Net::SSH2 module as if it was installed on the
+machine and use L<Net::OpenSSH> under the hood to handle SSH
+operations.
+
+Most programs using L<Net::SSH2> should continue to work unaltered.
+
+=head2 Setting defaults
+
+Thye hash C<%Net::OpenSSH::Compat::SSH2::DEFAULTS> can be used to set
+default values for L<Net::OpenSSH> and other modules called under the
+hood otherwise not accesible through the Net::SSH2 API.
+
+The currently supported entries are:
+
+=over
+
+=item connection => [ %opts ]
+
+Extra options passed to C<Net::OpenSSH::new> constructor.
+
+Example:
+
+  $Net::OpenSSH::Compat::SSH2::DEFAULTS{connection} =
+    [ ssh_path => "/opt/SSH/bin/ssh" ];
+
+=item channel => [ %opts ]
+
+Extra options passed to C<Net::OpenSSH::open_ex> method.
+
+=item sftp => [ %opts ]
+
+Extra options passed to C<Net::SFTP::Foreign::new> constructor.
+
+  $Net::OpenSSH::Compat::SSH2::DEFAULTS{connection} =
+    [ read_ahead => 128 * 1024, queue_size => 20 ];
+
+=back
+
+=head1 BUGS AND SUPPORT
+
+B<This is a work in progress.>
+
+Besides that, there are some functionality of Net::SSH2 that can not
+be emulated with Net::SSH2. Fortunatelly, the missing bits are rarely
+used so probably you may not need them at all.
+
+Anyway, if your Net::SSH2 script fails, fill a bug report at the CPAN
+RT bugtracker: L<https://rt.cpan.org/Ticket/Create.html?Queue=AI-FANN>
+or just send me a mail with the details.
+
+Include at least:
+
+=over 4
+
+=item 1 - The full source of the script
+
+=item 2 - A description of what happens in your machine
+
+=item 3 - What you thing it should be happening
+
+=item 4 - What happens when you use the real Net::SSH2
+
+=item 5 - The version and name of your operating system
+
+=item 6 - The version of the OpenSSH ssh client installed on your machine (C<ssh -V>)
+
+=item 7 - The Perl version (C<perl -V>)
+
+=item 8 - The versions of the Perl packages Net::OpenSSH, IO::TTY and this Net::OpenSSH::Compat.
+
+=back
+
+=head2 My wishlist
+
+If you like this module and you're feeling generous, take a look at my
+Amazon Wish List: L<http://amzn.com/w/1WU1P6IR5QZ42>
+
+Also consider contributing to the OpenSSH project this module builds
+upon: L<http://www.openssh.org/donations.html>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2011 by Salvador FandiE<ntilde>o
-(sfandino@yahoo.com)
+Copyright (C) 2011 by Salvador FandiE<ntilde>o (sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.10.0 or,

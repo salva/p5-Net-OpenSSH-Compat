@@ -1,5 +1,5 @@
 Changes
-gen_constants_ssh2.pl
+gen/gen_constants_ssh2.pl
 lib/Net/OpenSSH/Compat.pm
 lib/Net/OpenSSH/Compat/SSH2.pm
 lib/Net/OpenSSH/Compat/SSH2/Constants.pm

@@ -41,7 +41,7 @@ CPAN.
 Currently, there are an only adapter available for
 L<Net::SSH2>. Adapters for L<Net::SSH> and L<Net::SSH::Perl> are
 planned... maybe also for L<Net::SCP> and L<Net::SCP::Expect> if
-somebody request then.
+somebody request them.
 
 =head1 SEE ALSO
 

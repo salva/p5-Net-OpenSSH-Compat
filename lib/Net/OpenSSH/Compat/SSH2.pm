@@ -663,15 +663,16 @@ it will supplant the Net::SSH2 module as if it was installed on the
 machine and use L<Net::OpenSSH> under the hood to handle SSH
 operations.
 
-Most programs using L<Net::SSH2> should continue to work unaltered.
+Most programs using L<Net::SSH2> should continue to work without any
+change.
 
 =head2 Setting defaults
 
-Thye hash C<%Net::OpenSSH::Compat::SSH2::DEFAULTS> can be used to set
+The hash C<%Net::OpenSSH::Compat::SSH2::DEFAULTS> can be used to set
 default values for L<Net::OpenSSH> and other modules called under the
-hood otherwise not accesible through the Net::SSH2 API.
+hood and otherwise not accesible through the Net::SSH2 API.
 
-The currently supported entries are:
+The entries currently supported are:
 
 =over
 

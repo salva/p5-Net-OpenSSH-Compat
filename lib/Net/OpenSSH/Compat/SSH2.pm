@@ -6,6 +6,7 @@ use strict;
 use warnings;
 
 use Net::OpenSSH;
+use Net::OpenSSH::Constants qw(OSSH_MASTER_FAILED);
 use IO::Handle;
 use IO::Seekable;
 use File::Basename ();
@@ -23,7 +24,7 @@ our @EXPORT_OK = @{$EXPORT_TAGS{all}};
 $EXPORT_TAGS{supplant} = [];
 
 our %DEFAULTS = (connection => [],
-                 channel    => []
+                 channel    => [],
                  sftp       => []);
 
 my $supplant;
@@ -69,9 +70,27 @@ sub _free_channels {
     Scalar::Util::weaken $_ for @$cs;
 }
 
+sub _master_exited {
+    my $cpt = shift;
+    my $ssh = $cpt->{ssh};
+    if ($ssh) {
+        $ssh->master_exited;
+        $cpt->_set_error(LIBSSH2_ERROR_SOCKET_DISCONNECT => $ssh->error);
+    }
+}
+
 sub banner {}
 
 sub error { wantarray ? @{shift->{error}} : shift->{error}[0] }
+
+sub _set_error {
+    my $cpt = shift;
+    my $ssh = $cpt->{ssh};
+    if ($ssh and $ssh->error == OSSH_MASTER_FAILED) {
+        $cpt->{state} = 'failed';
+    }
+    $cpt->SUPER::_set_error(@_);
+}
 
 sub sock { undef }
 
@@ -100,7 +119,8 @@ sub _connect {
     $cpt->_check_state('connected*') or return;
 
     my ($host, $port, %opts) = @{$cpt->{connect_args}};
-    my @args = (@{$DEFAULTS{connection}||[]},
+    my $defs = $DEFAULTS{connection};
+    my @args = (($defs ? @$defs : ()),
                 host => $host, port => $port,
                 timeout => delete($opts{Timeout}));
     %opts and Carp::croak "unsupported option(s) given: ".join(", ", keys %opts);
@@ -114,8 +134,8 @@ sub _connect {
         push @args, user => $user, passwd => $passwd;
     }
     elsif ($auth eq 'auth_publickey') {
-        my ($user, undef, $private) = @_;
-        push @args, user => $user, key_path => $private;
+        my ($user, undef, $private, $passphrase) = @_;
+        push @args, user => $user, key_path => $private, passphrase => $passphrase;
     }
     elsif ($auth eq 'auth') {
         my %opts = @_;
@@ -149,7 +169,6 @@ sub _connect {
     my $ssh = Net::OpenSSH->new(@args);
     if ($ssh->error) {
         $cpt->_set_error(LIBSSH2_ERROR_SOCKET_DISCONNECT => $ssh->error);
-        $cpt->{state} = 'failed';
         return
     }
     else {
@@ -157,12 +176,15 @@ sub _connect {
         $cpt->{state} = 'ok';
         return 1
     }
-
 }
 
 sub tcpip { Carp::croak "method tcpip not implemented" }
 sub listen { Carp::croak "method listen not implemented" }
-sub poll { Carp::croak "method poll not implemented" }
+
+sub poll {
+    require Net::OpenSSH::Compat::SSH::Poll;
+    goto &_poll;
+}
 
 sub debug {}
 
@@ -235,6 +257,8 @@ sub _new {
 
 sub _hash { *{shift @_}{HASH} }
 
+sub _parent { shift->{hash}{cpt} }
+
 sub ext_data { $_[0]->_hash->{ext_data} = $_[1] }
 
 sub setenv {
@@ -248,12 +272,13 @@ sub _exec {
     my $chan = shift;
     $chan->_check_state('new') or return;
     my $defs = $DEFAULTS{channel};
-    my %opts = ( ($defs     ? %$defs   : ()),
-                 (ref $_[0] ? %{$_[0]} : ()),
+    my %opts = ( ($defs     ? @$defs      : ()),
+                 (ref $_[0] ? %{shift @_} : ()),
                  stdinout_socket => 1 );
     my $ch = $chan->_hash;
-    my $ssh = $ch->{cpt}{ssh};
     my $mode = $ch->{ext_data};
+    my $cpt = $ch->{cpt};
+    my $ssh = $cpt->{ssh};
     $mode ||= 'normal';
     if ($mode eq 'ignore') {
         $opts{stderr_discard} = 1;
@@ -266,6 +291,11 @@ sub _exec {
     }
     local %ENV = (%ENV, %{$ch->{env}}) if $ch->{env};
     my ($io, undef, $err, $pid) = $ssh->open_ex(\%opts, @_);
+    if ($ssh->error) {
+        $chan->_set_error(LIBSSH2_ERROR_SOCKET_DISCONNECT => $ssh->error);
+        $ch->{state} = 'failed';
+        return
+    }
     $chan->fdopen($io, 'r+');
     $chan->autoflush(1);
     binmode $chan;
@@ -294,10 +324,21 @@ sub close {
     $chan->SUPER::close;
     $ch->{err} and close($ch->{err});
     # warn "reaping $ch->{pid}";
-    waitpid $ch->{pid}, 0;
-    $ch->{exit_status} = ($? >> 8);
+    if (defined $ch->{pid}) {
+        waitpid $ch->{pid}, 0;
+        $ch->{exit_status} = $?;
+    }
     $ch->{state} = 'closed';
     1;
+}
+
+sub _master_exited { shift->_hash->{cpt}->_master_exited(@_) }
+
+sub _slave_exited {
+    my ($chan, $rc) = @_;
+    my $ch = $chan->_hash;
+    delete $ch->{pid};
+    $ch->{exit_status} = $rc;
 }
 
 sub DESTROY {
@@ -317,7 +358,7 @@ sub wait_closed {
 sub exit_status {
     my $chan = shift;
     $chan->_check_state('closed') or return;
-    $chan->_hash->{exit_status};
+    $chan->_hash->{exit_status} >> 8;
 }
 
 sub blocking { shift->_hash->{cpt}->blocking(@_) }
@@ -368,7 +409,7 @@ package Net::OpenSSH::Compat::SSH2::SFTP;
 sub _new {
     my ($class, $cpt) = @_;
     my $defs = $DEFAULTS{sftp};
-    my $sftp = $cpt->{ssh}->sftp($defs ? %$defs : ());
+    my $sftp = $cpt->{ssh}->sftp($defs ? @$defs : ());
     my $sw = { cpt => $cpt,
                sftp => $sftp };
     bless $sw, $class;
@@ -665,8 +706,9 @@ be emulated with Net::SSH2. Fortunatelly, the missing bits are rarely
 used so probably you may not need them at all.
 
 Anyway, if your Net::SSH2 script fails, fill a bug report at the CPAN
-RT bugtracker: L<https://rt.cpan.org/Ticket/Create.html?Queue=AI-FANN>
-or just send me a mail with the details.
+RT bugtracker
+(L<https://rt.cpan.org/Ticket/Create.html?Queue=Net-OpenSSH-Compat>)
+or just send me an e-mail with the details.
 
 Include at least:
 
@@ -686,7 +728,7 @@ Include at least:
 
 =item 7 - The Perl version (C<perl -V>)
 
-=item 8 - The versions of the Perl packages Net::OpenSSH, IO::TTY and this Net::OpenSSH::Compat.
+=item 8 - The versions of the Perl packages Net::OpenSSH, IO::Pty and this Net::OpenSSH::Compat.
 
 =back
 

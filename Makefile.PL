@@ -1,12 +1,7 @@
-use 5.010001;
 use ExtUtils::MakeMaker;
-# See lib/ExtUtils/MakeMaker.pm for details of how to influence
-# the contents of the Makefile that is written.
-WriteMakefile(
-    NAME              => 'Net::OpenSSH::Compat',
-    VERSION_FROM      => 'lib/Net/OpenSSH/Compat.pm', # finds $VERSION
-    PREREQ_PM         => {}, # e.g., Module::Name => 1.1
-    ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
-      (ABSTRACT_FROM  => 'lib/Net/OpenSSH/Compat.pm', # retrieve abstract from module
-       AUTHOR         => 'Salvador Fandino <salva@>') : ()),
-);
+
+WriteMakefile( NAME         => 'Net::OpenSSH::Compat',
+               VERSION_FROM => 'lib/Net/OpenSSH/Compat.pm',
+               PREREQ_PM    => { "Net::OpenSSH" => "0.51_11" },
+               AUTHOR       => 'Salvador Fandino <sfandino@yahoo.com>'
+             );

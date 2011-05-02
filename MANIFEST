@@ -1,6 +1,10 @@
 Changes
+gen_constants_ssh2.pl
+lib/Net/OpenSSH/Compat.pm
+lib/Net/OpenSSH/Compat/SSH2.pm
+lib/Net/OpenSSH/Compat/SSH2/Constants.pm
+lib/Net/OpenSSH/Compat/SSH2/Poll.pm
 Makefile.PL
 MANIFEST
 README
 t/Net-OpenSSH-Compat.t
-lib/Net/OpenSSH/Compat.pm

@@ -17,7 +17,7 @@ DEPENDENCIES
 This module requires these other modules and libraries:
 
      Net::OpenSSH
-     Expect (recommended)
+     IO::Pty (recommended)
      Net::SFTP::Foreign (recommended)
 
 COPYRIGHT AND LICENCE

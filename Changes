@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH::Compat.
 
 0.02
+        - add pointer to Github repository
         - correct mispellings and some wording error in the docs
 
 0.01  Tue Apr 12 19:08:56 2011

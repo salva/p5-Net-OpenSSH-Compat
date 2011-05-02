@@ -733,6 +733,11 @@ Include at least:
 
 =back
 
+=head2 Git repository
+
+The source code repository is at
+L<https://github.com/salva/p5-Net-OpenSSH-Compat>.
+
 =head2 My wishlist
 
 If you like this module and you're feeling generous, take a look at my

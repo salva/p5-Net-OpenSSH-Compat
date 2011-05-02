@@ -43,6 +43,31 @@ L<Net::SSH2>. Adapters for L<Net::SSH> and L<Net::SSH::Perl> are
 planned... maybe also for L<Net::SCP> and L<Net::SCP::Expect> if
 somebody request them.
 
+=head1 BUGS AND SUPPORT
+
+B<This is a work in progress.>
+
+Besides that, there are some functionality of Net::SSH2 that can not
+be emulated with Net::SSH2. Fortunatelly, the missing bits are rarely
+used so probably you may not need them at all.
+
+Anyway, if your Net::SSH2 script fails, fill a bug report at the CPAN
+RT bugtracker
+(L<https://rt.cpan.org/Ticket/Create.html?Queue=Net-OpenSSH-Compat>)
+or just send me an e-mail with the details.
+
+=head2 Git repository
+
+The source code repository is at L<https://github.com/salva/p5-Net-OpenSSH-Compat>.
+
+=head2 My wishlist
+
+If you like this module and you're feeling generous, take a look at my
+Amazon Wish List: L<http://amzn.com/w/1WU1P6IR5QZ42>
+
+Also consider contributing to the OpenSSH project this module builds
+upon: L<http://www.openssh.org/donations.html>.
+
 =head1 SEE ALSO
 
 L<Net::OpenSSH>, L<Net::OpenSSH::Compat::SSH2>.

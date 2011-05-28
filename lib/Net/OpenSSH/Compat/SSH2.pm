@@ -1,6 +1,6 @@
 package Net::OpenSSH::Compat::SSH2;
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 
 use strict;
 use warnings;
@@ -25,7 +25,8 @@ $EXPORT_TAGS{supplant} = [];
 
 our %DEFAULTS = (connection => [],
                  channel    => [],
-                 sftp       => []);
+                 sftp       => [],
+                 methods    => []);
 
 my $supplant;
 
@@ -57,10 +58,13 @@ sub version { "1.2.6 (".__PACKAGE__."-$VERSION)" }
 
 sub new {
     my $class = shift;
+    my %methods = @{$DEFAULTS{methods}};
     my $cpt = { state => 'new',
                 error => [0, "", ""],
                 blocking => 1,
-                channels => [] };
+                channels => [],
+                methods => \%methods,
+              };
     bless $cpt, $class;
 }
 
@@ -102,7 +106,10 @@ sub auth_list {
 }
 
 sub connect {
+    @_ < 2 and croak "Net::SSH2::connect: not enough parameters";
     my $cpt = shift;
+    ref $_[0] and croak "accepting a handler reference for the connection is not implemented";
+
     $cpt->{connect_args} = [@_];
     $cpt->{state} = 'connected*';
 }
@@ -113,6 +120,37 @@ sub auth_password  { shift->_connect(auth_password    => @_) }
 sub auth_publickey { shift->_connect(auth_publickey => @_) }
 sub auth           { shift->_connect(auth           => @_) }
 
+my %method_default = ( HOSTKEY => 'ssh-rsa',
+                       KEX     => 'diffie-hellman-group14-sha1',
+                       CRYPT   => 'aes128-ctr',
+                       MAC     => 'hmac-sha1',
+                       COMP    => 'none',
+                     );
+
+sub method {
+    my $cpt = shift;
+    my $attr = shift;
+    $attr =~ s/_(?:SC|CS)$//;
+    if (exists $method_default{$attr}) {
+        if (@_) {
+            $cpt->{methods}{$attr} = join(',', @_)
+                if $cpt->{state} eq 'new';
+            return 1;
+        }
+        else {
+            $cpt->{state} eq 'new' and return;
+            my $val = $cpt->{methods}{$attr};
+            return (defined $val ? $val : $method_default{$attr});
+        }
+    }
+    croak "Net::SSH2::method: unknown method type: $attr";
+}
+
+my %method2opt = (HOSTKEY => 'HostKeyAlgorithms',
+                  CRYPT   => 'Ciphers',
+                  KEX     => 'KexAlgorithms',
+                  MAC     => 'MACs',
+                 );
 
 sub _connect {
     my $cpt = shift;
@@ -120,10 +158,21 @@ sub _connect {
 
     my ($host, $port, %opts) = @{$cpt->{connect_args}};
     my $defs = $DEFAULTS{connection};
+    my @master_opts;
     my @args = (($defs ? @$defs : ()),
                 host => $host, port => $port,
                 timeout => delete($opts{Timeout}));
     %opts and Carp::croak "unsupported option(s) given: ".join(", ", keys %opts);
+
+    for my $method (keys %method2opt) {
+        my $v = $cpt->{methods}{$method};
+        push @master_opts, -o => "$method2opt{$method}=$v" if defined $v;
+    }
+
+    my $COMP = $cpt->{methods}{COMP};
+    if (defined $COMP and $COMP ne 'none') {
+        push @master_opts, '-C';
+    }
 
     my $auth = shift;
     $cpt->{auth_method} ||= $auth;
@@ -166,6 +215,7 @@ sub _connect {
     else {
         Carp::croak "unsupported login method";
     }
+    push @args, master_opts => \@master_opts if @master_opts;
     my $ssh = Net::OpenSSH->new(@args);
     if ($ssh->error) {
         $cpt->_set_error(LIBSSH2_ERROR_SOCKET_DISCONNECT => $ssh->error);
@@ -705,6 +755,9 @@ B<This is a work in progress.>
 Besides that, there are some functionality of Net::SSH2 that can not
 be emulated with Net::SSH2. Fortunatelly, the missing bits are rarely
 used so probably you may not need them at all.
+
+Specifically, the return values from the C<$ssh2-E<gt>method($ATTR)>
+are not real but faked ones.
 
 Anyway, if your Net::SSH2 script fails, fill a bug report at the CPAN
 RT bugtracker

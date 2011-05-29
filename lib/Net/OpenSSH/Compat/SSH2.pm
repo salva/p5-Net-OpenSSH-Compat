@@ -759,9 +759,7 @@ be emulated with Net::SSH2. Fortunatelly, the missing bits are rarely
 used so probably you may not need them at all.
 
 Specifically, the return values from the C<$ssh2-E<gt>method($ATTR)>
-are not real but faked ones.
-
-C<auth_list> return value is also faked.
+are not real but faked ones. C<auth_list> return value is also faked.
 
 Anyway, if your Net::SSH2 script fails, fill a bug report at the CPAN
 RT bugtracker

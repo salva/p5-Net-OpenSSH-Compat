@@ -681,6 +681,8 @@ sub _state { shift->_hash->{state} }
 
 1;
 
+__END__
+
 =head1
 
 Net::OpenSSH::Compat::SSH2 - Net::OpenSSH adapter for Net::SSH2 API compatibility
@@ -755,7 +757,7 @@ Extra options passed to C<Net::SFTP::Foreign::new> constructor.
 B<This is a work in progress.>
 
 Besides that, there are some functionality of Net::SSH2 that can not
-be emulated with Net::SSH2. Fortunatelly, the missing bits are rarely
+be emulated with Net::OpenSSH. Fortunatelly, the missing bits are rarely
 used so probably you may not need them at all.
 
 Specifically, the return values from the C<$ssh2-E<gt>method($ATTR)>

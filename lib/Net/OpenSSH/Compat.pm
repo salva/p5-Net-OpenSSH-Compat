@@ -1,12 +1,13 @@
 package Net::OpenSSH::Compat;
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 
 use strict;
 use warnings;
 use Carp;
 
-my %impl = ('Net::SSH2' => 'SSH2');
+my %impl = ('Net::SSH2' => 'SSH2',
+            'Net::SSH::Perl' => 'Perl');
 
 sub import {
     my $class = shift;
@@ -30,7 +31,7 @@ Net::OpenSSH::Compat - Compatibility modules for Net::OpenSSH
 =head1 SYNOPSIS
 
   use Net::OpenSSH::Compat 'Net::SSH2';
-
+  use Net::OpenSSH::Compat 'Net::SSH::Perl';
 
 =head1 DESCRIPTION
 
@@ -38,8 +39,8 @@ This package contains a set of adapter modules that run on top of
 Net::OpenSSH providing the APIs of other SSH modules available from
 CPAN.
 
-Currently, there are an only adapter available for
-L<Net::SSH2>. Adapters for L<Net::SSH> and L<Net::SSH::Perl> are
+Currently, there are adapters available for L<Net::SSH2> and
+L<Net::SSH::Perl>. Adapters for L<Net::SSH> and L<Net::SFTP> are
 planned... maybe also for L<Net::SCP> and L<Net::SCP::Expect> if
 somebody request them.
 
@@ -66,7 +67,8 @@ upon: L<http://www.openssh.org/donations.html>.
 
 =head1 SEE ALSO
 
-L<Net::OpenSSH>, L<Net::OpenSSH::Compat::SSH2>.
+L<Net::OpenSSH>, L<Net::OpenSSH::Compat::SSH2>,
+L<Net::OpenSSH::Compat::Perl>.
 
 =head1 COPYRIGHT AND LICENSE
 

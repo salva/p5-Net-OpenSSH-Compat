@@ -1,5 +1,9 @@
 Revision history for Perl extension Net::OpenSSH::Compat.
 
+0.03 
+        - add support for Net::SSH::Perl
+        - minor doc corrections
+
 0.02  May 29, 2011
         - add support for auth_list
         - add support for "Net::SSH2::method" method.

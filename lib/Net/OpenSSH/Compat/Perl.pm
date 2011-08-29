@@ -1,13 +1,13 @@
 package Net::OpenSSH::Compat::Perl;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use strict;
 use warnings;
 use Carp ();
 
 use Net::OpenSSH;
-use Net::OpenSSH::Constants qw(OSSH_MASTER_FAILED OSSH_SLAVE_CMD_FAILED) ;
+use Net::OpenSSH::Constants qw(OSSH_MASTER_FAILED OSSH_SLAVE_CMD_FAILED);
 
 require Exporter;
 our @ISA = qw(Exporter);

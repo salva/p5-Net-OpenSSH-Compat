@@ -1,13 +1,14 @@
 package Net::OpenSSH::Compat;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 use strict;
 use warnings;
 use Carp;
 
-my %impl = ('Net::SSH2' => 'SSH2',
-            'Net::SSH::Perl' => 'Perl');
+my %impl = ('Net::SSH2'      => 'SSH2',
+            'Net::SSH::Perl' => 'Perl',
+            'Net::SSH'       => 'SSH');
 
 sub import {
     my $class = shift;

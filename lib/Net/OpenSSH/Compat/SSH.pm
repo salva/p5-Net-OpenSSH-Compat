@@ -12,9 +12,9 @@ use Net::OpenSSH::Constants qw(OSSH_MASTER_FAILED OSSH_SLAVE_CMD_FAILED);
 
 require Exporter;
 our @ISA = qw(Exporter);
+our @EXPORT_OK = qw(ssh ssh_cmd sshopen2 sshopen3);
 
 my $supplant;
-my $session_id = 1;
 
 our %DEFAULTS = ( connection => [] );
 
@@ -39,7 +39,8 @@ sub import {
             ${"${pkg}::VERSION"} = __PACKAGE__->version;
         }
     }
-    __PACKAGE__->export_to_level(1, @_);
+    __PACKAGE__->export_to_level(1, $class,
+                                 grep $_ ne ':supplant', @_);
 }
 
 sub version { "0.09 (".__PACKAGE__."-$VERSION)" }
@@ -89,8 +90,8 @@ sub sshopen2 {
     open2($reader, $writer, @cmd);
 }
 
-sub sshopen2 {
-    my($host, $reader, $writer, $erro, $cmd, @args) = @_;
+sub sshopen3 {
+    my($host, $reader, $writer, $error, $cmd, @args) = @_;
     my $ssh = Net::OpenSSH->new($host);
     $ssh->die_on_error;
     my @cmd = $ssh->make_remote_command({quote_args => 0}, $cmd, @args);
@@ -98,3 +99,47 @@ sub sshopen2 {
 }
 
 1;
+
+__END__
+
+=head1 NAME
+
+Net::OpenSSH::Compat::SSH - Net::OpenSSH adapter for Net::SSH API compatibility
+
+=head1 SYNOPSIS
+
+  use Net::OpenSSH::ConnectionCache; # for speed bost
+  use Net::OpenSSH::Compat qw(Net::SSH);
+
+  use Net::SSH qw(ssh ssh_cmd sshopen3);
+
+  my $out = ssh_cmd('username@host', $command);
+
+  sshopen2('user@hostname', $reader, $writer, $command);
+
+  sshopen3('user@hostname', $writer, $reader, $error, $command);
+
+=head1 DESCRIPTION
+
+This module implements L<Net::SSH> API on top of L<Net::OpenSSH>.
+
+After the module is loaded as follows:
+
+  use Net::OpenSSH::Compat 'Net::SSH';
+
+or from the command line:
+
+  $ perl -MNet::OpenSSH::Compat=Net::SSH script.pl
+
+it will supplant Net::SSH module as if it was installed on the
+machine and use L<Net::OpenSSH> under the hood to handle SSH
+operations.
+
+Most programs using L<Net::SSH> should continue to work without any
+change.
+
+It can be used together with L<Net::OpenSSH::ConnectionCache> usually
+for a big speed boost.
+
+=cut
+

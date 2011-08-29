@@ -5,6 +5,7 @@ lib/Net/OpenSSH/Compat/SSH2.pm
 lib/Net/OpenSSH/Compat/SSH2/Constants.pm
 lib/Net/OpenSSH/Compat/SSH2/Poll.pm
 lib/Net/OpenSSH/Compat/Perl.pm
+lib/Net/OpenSSH/Compat/SSH.pm
 Makefile.PL
 MANIFEST
 README

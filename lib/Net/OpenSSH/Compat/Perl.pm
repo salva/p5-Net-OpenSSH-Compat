@@ -39,7 +39,8 @@ sub import {
             ${"${pkg}::VERSION"} = __PACKAGE__->version;
         }
     }
-    __PACKAGE__->export_to_level(1, @_);
+    __PACKAGE__->export_to_level(1, $class,
+                                 grep $_ ne ':supplant', @_);
 }
 
 sub version { "1.34 (".__PACKAGE__."-$VERSION)" }

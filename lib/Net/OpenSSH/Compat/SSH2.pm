@@ -51,7 +51,8 @@ sub import {
             ${"${pkg}::VERSION"} = __PACKAGE__->version;
         }
     }
-    __PACKAGE__->export_to_level(1, @_);
+    __PACKAGE__->export_to_level(1, $class,
+                                 grep $_ ne ':supplant', @_));
 }
 
 sub version { "1.2.6 (".__PACKAGE__."-$VERSION)" }
@@ -683,7 +684,7 @@ sub _state { shift->_hash->{state} }
 
 __END__
 
-=head1
+=head1 NAME
 
 Net::OpenSSH::Compat::SSH2 - Net::OpenSSH adapter for Net::SSH2 API compatibility
 

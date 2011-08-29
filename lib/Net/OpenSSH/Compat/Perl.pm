@@ -24,7 +24,7 @@ sub import {
         $class eq __PACKAGE__ and
         grep($_ eq ':supplant', @_)) {
         $supplant = 1;
-        for my $end ('', qw(Channel SFTP Dir File)) {
+        for my $end ('') { #, qw(Channel SFTP Dir File)) {
             my $this = __PACKAGE__;
             my $pkg = "Net::SSH::Perl";
             my $file = "Net/SSH/Perl";

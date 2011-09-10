@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH::Compat.
 
 0.05  Sep 10, 2011
+        - add use_ok tests for submodules
         - in SSH2 :
           - exit_status can be called from any state
           - add support for eof and exit_signal methods

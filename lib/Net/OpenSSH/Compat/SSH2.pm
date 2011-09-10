@@ -13,6 +13,7 @@ use File::Basename ();
 use Fcntl ();
 use Carp ();
 use Scalar::Util ();
+use POSIX ();
 
 require Exporter;
 our @ISA = qw(Exporter Net::OpenSSH::Compat::SSH2::Base);
@@ -249,6 +250,7 @@ sub blocking {
 
 sub scp_get {
     my ($cpt, $remote, $local) = @_;
+    $cpt->_check_state('ok');
     unless (defined $local) {
         $local = File::Basename::basename($remote);
     }
@@ -263,6 +265,7 @@ sub scp_get {
 
 sub scp_put {
     my ($cpt, $local, $remote) = @_;
+    $cpt->_check_state('ok');
     unless (defined $remote) {
         $remote = File::Basename::basename($local);
     }
@@ -277,6 +280,7 @@ sub scp_put {
 
 sub channel {
     my $cpt = shift;
+    $cpt->_check_state('ok');
     my $class = join('::', ref($cpt), 'Channel');
     my $chan = $class->_new($cpt);
     push @{$cpt->{channels}}, $chan;
@@ -286,6 +290,7 @@ sub channel {
 
 sub sftp {
     my $cpt = shift;
+    $cpt->_check_state('ok');
     my $class = join('::', ref($cpt), 'SFTP');
     $class->_new($cpt);
 }
@@ -306,7 +311,7 @@ sub _new {
 
 sub _hash { *{shift @_}{HASH} }
 
-sub _parent { shift->{hash}{cpt} }
+sub _parent { shift->_hash->{cpt} }
 
 sub ext_data { $_[0]->_hash->{ext_data} = $_[1] }
 
@@ -373,11 +378,9 @@ sub close {
     $chan->SUPER::close;
     $ch->{err} and close($ch->{err});
     # warn "reaping $ch->{pid}";
-    if (defined $ch->{pid}) {
-        waitpid $ch->{pid}, 0;
-        $ch->{exit_status} = $?;
-    }
+    $chan->_exit_status(1);
     $ch->{state} = 'closed';
+    $ch->{eof} = 1;
     1;
 }
 
@@ -404,11 +407,27 @@ sub wait_closed {
     $ch->{state} eq 'closed';
 }
 
-sub exit_status {
-    my $chan = shift;
-    $chan->_check_state('closed') or return;
-    $chan->_hash->{exit_status} >> 8;
+sub _exit_status {
+    my ($chan, $wait) = @_;
+    my $ch = $chan->_hash;
+    return $ch->{exit_status} if defined $ch->{exit_status};
+    return 0 unless defined $ch->{pid};
+    while (1) {
+        my $pid = waitpid $ch->{pid}, ($wait ? 0 : POSIX::WNOHANG());
+        if ($pid == $ch->{pid}) {
+            return $ch->{exit_status} = $?;
+        }
+        if ($pid < 0 and $! == Errno::ECHILD) {
+            return $ch->{exit_status} = 0;
+        }
+        return 0 unless $wait;
+        select(undef, undef, undef, 0.1);
+    }
 }
+
+sub exit_status { shift->_exit_status(0) >> 8 }
+
+sub exit_signal { shift->_exit_status(0) & 255 }
 
 sub blocking { shift->_hash->{cpt}->blocking(@_) }
 
@@ -438,18 +457,29 @@ sub write {
 
 sub read {
     my ($chan, undef, $size, $ext) = @_;
+    $size ||= 1024;
     $chan->_check_state('exec') or return;
     my $ch = $chan->_hash;
-    my $fd;
     if ($ext) {
-        $fd = $ch->{err} or
+        my $fd = $ch->{err} or
             $chan->_set_error(LIBSSH2_ERROR_CHANNEL_UNKNOWN => 'no ext channel available');
+        return sysread($fd, $_[1], $size);
     }
     else {
-        $fd = $chan;
+        unless ($ch->{blocking}) {
+            my $fno = fileno($chan);
+            my $v = '';
+            vec($v, $fno, 1) = 1;
+            select($v, undef, undef, 0);
+            vec($v, $fno, 1) or return 0;
+        }
+        my $bytes = sysread($chan, $_[1], $size || 0);
+        $ch->{eof} = 1 unless $bytes;
+        return $bytes;
     }
-    sysread($fd, $_[1], $size || 0)
 }
+
+sub eof { shift->_hash->{eof} || 0}
 
 sub flush { 0 }
 

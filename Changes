@@ -1,5 +1,14 @@
 Revision history for Perl extension Net::OpenSSH::Compat.
 
+0.05  Sep 10, 2011
+        - in SSH2 :
+          - exit_status can be called from any state
+          - add support for eof and exit_signal methods
+          - more checks for out of order operations
+          - solve bug accessing parent object from channel
+          - close now sets eof
+          - syntax error bug solved (reported by Will Hawes)
+
 0.04  Aug 29, 2011
         - add support for Net::SSH::Perl and Net::SSH
         - import method was broken

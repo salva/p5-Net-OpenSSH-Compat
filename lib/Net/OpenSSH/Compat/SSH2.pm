@@ -52,7 +52,7 @@ sub import {
         }
     }
     __PACKAGE__->export_to_level(1, $class,
-                                 grep $_ ne ':supplant', @_));
+                                 grep $_ ne ':supplant', @_);
 }
 
 sub version { "1.2.6 (".__PACKAGE__."-$VERSION)" }
@@ -102,9 +102,7 @@ sub sock { undef }
 sub trace { }
 
 my @_auth_list = qw(publickey password);
-sub auth_list {
-    wantarray ? @_auth_list : join(',', @_auth_list);
-}
+sub auth_list { wantarray ? @_auth_list : join(',', @_auth_list) }
 
 sub connect {
     @_ < 2 and croak "Net::SSH2::connect: not enough parameters";
@@ -127,8 +125,6 @@ my %method_default = ( HOSTKEY => 'ssh-rsa',
                        MAC     => 'hmac-sha1',
                        COMP    => 'none',
                      );
-
-sub auth_list { wantarray ? qw(publickey password) : 'publickey,password' }
 
 sub method {
     my $cpt = shift;

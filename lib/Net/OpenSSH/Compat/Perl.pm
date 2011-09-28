@@ -140,7 +140,9 @@ sub shell {
     my $cpt = shift;
     $cpt->_check_state('connected');
     my $ssh = $cpt->{ssh};
-    $ssh->system({tty => 1});
+    my $tty = $cpt->{cfg}{use_pty};
+    $tty = 1 unless defined $tty;
+    $ssh->system({tty => $tty});
 }
 
 sub config { shift->{cfg} }

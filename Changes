@@ -1,5 +1,11 @@
 Revision history for Perl extension Net::OpenSSH::Compat.
 
+0.06
+        - in SSH2:
+          - honor use_pty configuration flag from shell method
+        - in SSH:
+          - order or $reader, $writer arguments for sshopen3 was wrong
+
 0.05  Sep 10, 2011
         - add use_ok tests for submodules
         - in SSH2 :

@@ -1,6 +1,6 @@
 package Net::OpenSSH::Compat::Perl;
 
-our $VERSION = '0.04';
+our $VERSION = '0.06';
 
 use strict;
 use warnings;

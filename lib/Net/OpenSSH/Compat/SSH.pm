@@ -1,6 +1,6 @@
 package Net::OpenSSH::Compat::SSH;
 
-our $VERSION = '0.04';
+our $VERSION = '0.06';
 
 use strict;
 use warnings;
@@ -91,7 +91,7 @@ sub sshopen2 {
 }
 
 sub sshopen3 {
-    my($host, $reader, $writer, $error, $cmd, @args) = @_;
+    my($host, $writer, $reader, $error, $cmd, @args) = @_;
     my $ssh = Net::OpenSSH->new($host);
     $ssh->die_on_error;
     my @cmd = $ssh->make_remote_command({quote_args => 0}, $cmd, @args);

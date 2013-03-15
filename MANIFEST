@@ -13,3 +13,4 @@ t/Net-OpenSSH-Compat.t
 t/Net-SSH.t
 t/Net-SSH-Perl.t
 t/pods.t
+examples/conditional_loading.pl

@@ -1,5 +1,8 @@
 Revision history for Perl extension Net::OpenSSH::Compat.
 
+0.07
+        - add conditional_loading example
+
 0.06  Sep 28, 2011
         - in SSH2:
           - honor use_pty configuration flag from shell method

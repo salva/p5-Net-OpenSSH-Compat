@@ -1,6 +1,7 @@
 Revision history for Perl extension Net::OpenSSH::Compat.
 
 0.07
+        - fix pod (bug report by Florian Schlichting from Debian)
         - add conditional_loading example
 
 0.06  Sep 28, 2011

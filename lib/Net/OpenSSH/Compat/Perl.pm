@@ -204,7 +204,7 @@ $make_missing_methods->(qw(read_config merge_directive AUTOLOAD));
 
 __END__
 
-=head1
+=head1 NAME
 
 Net::OpenSSH::Compat::Perl - Net::OpenSSH adapter for Net::SSH::Perl API compatibility
 

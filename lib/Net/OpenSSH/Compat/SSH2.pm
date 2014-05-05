@@ -751,7 +751,7 @@ change.
 
 The hash C<%Net::OpenSSH::Compat::SSH2::DEFAULTS> can be used to set
 default values for L<Net::OpenSSH> and other modules called under the
-hood and otherwise not accesible through the Net::SSH2 API.
+hood and otherwise not accessible through the Net::SSH2 API.
 
 The entries currently supported are:
 
@@ -784,7 +784,7 @@ Extra options passed to C<Net::SFTP::Foreign::new> constructor.
 B<This is a work in progress.>
 
 Besides that, there are some functionality of Net::SSH2 that can not
-be emulated with Net::OpenSSH. Fortunatelly, the missing bits are rarely
+be emulated with Net::OpenSSH. Fortunately, the missing bits are rarely
 used so probably you may not need them at all.
 
 Specifically, the return values from the C<$ssh2-E<gt>method($ATTR)>

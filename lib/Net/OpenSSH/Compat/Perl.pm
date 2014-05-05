@@ -236,7 +236,7 @@ operations.
 
 The hash C<%Net::OpenSSH::Compat::Perl::DEFAULTS> can be used to set
 default values for L<Net::OpenSSH> and other modules called under the
-hood and otherwise not accesible through the Net::SSH::Perl API.
+hood and otherwise not accessible through the Net::SSH::Perl API.
 
 The entries currently supported are:
 

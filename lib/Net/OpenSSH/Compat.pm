@@ -1,6 +1,6 @@
 package Net::OpenSSH::Compat;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use strict;
 use warnings;
@@ -73,7 +73,7 @@ L<Net::OpenSSH::Compat::Perl>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2011, 2014 by Salvador FandiE<ntilde>o
+Copyright (C) 2011, 2014, 2015 by Salvador FandiE<ntilde>o
 (sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify

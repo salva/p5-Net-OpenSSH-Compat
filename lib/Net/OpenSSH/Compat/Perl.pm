@@ -1,6 +1,6 @@
 package Net::OpenSSH::Compat::Perl;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 use strict;
 use warnings;
@@ -15,7 +15,7 @@ our @ISA = qw(Exporter);
 my $supplant;
 my $session_id = 1;
 
-our %DEFAULTS = ( session    => [proto => 2],
+our %DEFAULTS = ( session    => [protocol => 2],
                   connection => [] );
 
 sub import {
@@ -171,16 +171,18 @@ $make_missing_methods->(qw(register_handler
 
 package Net::OpenSSH::Compat::Perl::Config;
 
+my %option_perl2openssh = qw(protocol proto);
+
 sub new {
     my $class = shift;
     my %opts = (@{$DEFAULTS{session}}, @_);
     my %cfg = map { my $v = delete $opts{$_};
-                    defined $v ? ($_, $v) : () } qw(port proto debug interactive
-                                                    privileged identity_files cipher
-                                                    ciphers compression
-                                                    compression_level use_pty
-                                                    options);
-
+                    my $name = $option_perl2openssh{$_} || $_;
+                    defined $v ? ($name, $v) : () } qw(port protocol debug interactive
+                                                       privileged identity_files cipher
+                                                       ciphers compression
+                                                       compression_level use_pty
+                                                       options);
 
     %opts and Carp::croak "unsupported configuration option(s) given: ".join(", ", keys %opts);
     $cfg{proto} =~ /\b2\b/ or Carp::croak "Unsupported protocol version requested $cfg{proto}";
@@ -303,7 +305,7 @@ upon: L<http://www.openssh.org/donations.html>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2011, 2014 by Salvador FandiE<ntilde>o (sfandino@yahoo.com)
+Copyright (C) 2011, 2014, 2015 by Salvador FandiE<ntilde>o (sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.10.0 or,

@@ -16,7 +16,7 @@ use Scalar::Util ();
 use POSIX ();
 
 require Exporter;
-our @ISA = qw(Exporter Net::OpenSSH::Compat::SSH2::Base);
+our @ISA = qw(Exporter);
 
 use Net::OpenSSH::Compat::SSH2::Constants;
 

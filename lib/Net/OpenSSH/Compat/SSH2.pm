@@ -57,7 +57,7 @@ sub import {
                                  grep $_ ne ':supplant', @_);
 }
 
-sub version { "1.2.6 (".__PACKAGE__."-$VERSION)" }
+sub version { ('1.7.0', 0x010700, "SSH-2.0-Net-OpenSSH-Compat-SSH2-$VERSION") }
 
 sub new {
     my $class = shift;

@@ -29,7 +29,7 @@ EOH
 for my $c (@Net::SSH2::EXPORT_OK) {
     my $v = eval "Net::SSH2::$c()";
     if ($@) {
-        $@ =~ /(.*\S)\s+at\s+.*\s+line\s+\d+\n?$/
+        $@ =~ /(.*\S)\s+at\s+.*\s+line\s+\d+\.?\n?$/
             or die "unable to extract error message from $@";
         my $q = quote $1;
         say "sub $c () { croak $q }"

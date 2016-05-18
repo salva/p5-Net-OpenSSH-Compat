@@ -11,6 +11,7 @@ use Net::OpenSSH::Constants qw(OSSH_MASTER_FAILED OSSH_SLAVE_CMD_FAILED);
 
 require Exporter;
 our @ISA = qw(Exporter);
+our @CARP_NOT = qw(Net::OpenSSH);
 
 my $supplant;
 my $session_id = 1;

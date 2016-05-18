@@ -17,6 +17,7 @@ use POSIX ();
 
 require Exporter;
 our @ISA = qw(Exporter);
+our @CARP_NOT = qw(Net::OpenSSH);
 
 use Net::OpenSSH::Compat::SSH2::Constants;
 

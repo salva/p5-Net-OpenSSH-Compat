@@ -1,6 +1,6 @@
 package Net::OpenSSH::Compat::SSH2;
 
-our $VERSION = '0.02';
+our $VERSION = '0.08';
 
 use strict;
 use warnings;
@@ -833,7 +833,8 @@ upon: L<http://www.openssh.org/donations.html>.
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2011, 2014 by Salvador FandiE<ntilde>o (sfandino@yahoo.com)
+Copyright (C) 2011, 2014-2016 by Salvador FandiE<ntilde>o
+(sfandino@yahoo.com)
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.10.0 or,

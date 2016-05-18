@@ -1,5 +1,11 @@
 Revision history for Perl extension Net::OpenSSH::Compat.
 
+0.08  May 18, 2016
+        - In Perl, make no strict host key checking the default
+          policy (bug report by Gagan S).
+        - Make Net::OpenSSH::Compat transparent for Net::OpenSSH
+          warnings so that they reference the calling code.
+
 0.07  Aug 31, 2015
         - accept protocol argument (bug report by Bas van Sisseren)
         - spelling error fixes

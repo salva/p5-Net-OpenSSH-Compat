@@ -4,19 +4,21 @@ our $VERSION = '0.08';
 
 use strict;
 use warnings;
+use warnings::register;
 
 use Net::OpenSSH;
 use Net::OpenSSH::Constants qw(OSSH_MASTER_FAILED);
 use IO::Handle;
 use IO::Seekable;
 use File::Basename ();
+use File::Spec ();
 use Fcntl ();
 use Carp ();
 use Scalar::Util ();
 use POSIX ();
 
 require Exporter;
-our @ISA = qw(Exporter);
+our @ISA = qw(Exporter Net::OpenSSH::Compat::SSH2::Base);
 our @CARP_NOT = qw(Net::OpenSSH);
 
 use Net::OpenSSH::Compat::SSH2::Constants;
@@ -55,6 +57,31 @@ sub import {
     }
     __PACKAGE__->export_to_level(1, $class,
                                  grep $_ ne ':supplant', @_);
+}
+
+my %constant_cache;
+
+sub _mkcst {
+    my ($tag, $value, $default) = @_;
+    unless (defined $value) {
+        @_ > 2 or croak "undef is not a valid value for $tag constants";
+        return unless defined $default;
+        $value = $default;
+    }
+    return if Scalar::Util::looks_like_number($value);
+
+    my $cached = $constant_cache{$tag}{$value};
+    unless (defined $cached) {
+        my $e = $EXPORT_TAGS{$tag} or die "Internal error: bad tag '$tag'";
+        my $name;
+        for my $key (sort { length($a) <=> length($b) } @$e) {
+            $name = $key if $key =~ /_\Q$value\E$/i;
+        }
+        defined $name or croak "Bad constant name $value";
+        $cached = $constant_cache{$tag}{$value} = __PACKAGE__->$name;
+    }
+
+    $_[1] = $cached;
 }
 
 sub version { ('1.7.0', 0x010700, "SSH-2.0-Net-OpenSSH-Compat-SSH2-$VERSION") }
@@ -102,6 +129,13 @@ sub _set_error {
 sub sock { undef }
 
 sub trace { }
+
+sub check_hostkey {
+    my ($self, $policy, $known_hosts) = @_;
+    _mkcst(policy => $policy, LIBSSH2_HOSTKEY_POLICY_STRICT);
+    $self->{check_hostkey} = [$policy, $known_hosts];
+    1;
+}
 
 my @_auth_list = qw(publickey password);
 sub auth_list { wantarray ? @_auth_list : join(',', @_auth_list) }
@@ -216,6 +250,41 @@ sub _connect {
     else {
         Carp::croak "unsupported login method";
     }
+
+    my $check_hostkey = $cpt->{check_hostkey};
+    $check_hostkey
+        or warnings::warnif(__PACKAGE__, "Your Net::SSH2 code is not calling check_hostkey");
+
+    my ($policy, $known_hosts) = ($check_hostkey
+                                  ? @$check_hostkey
+                                  : LIBSSH2_HOSTKEY_POLICY_ADVISORY);
+    my $shkc;
+    if ($policy == LIBSSH2_HOSTKEY_POLICY_ADVISORY) {
+        $shkc = 'no';
+        $known_hosts = File::Spec->devnull;
+    }
+    elsif ($policy == LIBSSH2_HOSTKEY_POLICY_TOFU) {
+        $shkc = 'no';
+    }
+    elsif ($policy == LIBSSH2_HOSTKEY_POLICY_ASK) {
+        if ($auth eq 'auth_password') {
+            warnings::warnif(__PACKAGE__, "Net::OpenSSH can handle both policy ask and password authentication");
+            $shkc = 'yes';
+        }
+        else {
+            $shkc = 'ask';
+        }
+    }
+    elsif ($policy == LIBSSH2_HOSTKEY_POLICY_STRICT) {
+        $shkc = 'yes';
+    }
+    else {
+        croak "unsupported hostkey checking policy $policy";
+    }
+
+    push @master_opts, "-oStrictHostKeyChecking=$shkc";
+    push @master_opts, "-oUserKnownHostsFile=$known_hosts" if defined $known_hosts;
+
     push @args, master_opts => \@master_opts if @master_opts;
     my $ssh = Net::OpenSSH->new(@args);
     if ($ssh->error) {

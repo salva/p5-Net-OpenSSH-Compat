@@ -1,8 +1,12 @@
 Revision history for Perl extension Net::OpenSSH::Compat.
 
+0.09  May 18, 2016
+        - In Net::OpenSSH::Compat::SSH2, add emulation for
+          hostkey_check method.
+
 0.08  May 18, 2016
-        - In Perl, make no strict host key checking the default
-          policy (bug report by Gagan S).
+        - In Net::OpenSSH::Compat::Perl, make no strict host key
+          checking the default policy (bug report by Gagan S).
         - Make Net::OpenSSH::Compat transparent for Net::OpenSSH
           warnings so that they reference the calling code.
 

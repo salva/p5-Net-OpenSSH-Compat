@@ -16,7 +16,8 @@ our @CARP_NOT = qw(Net::OpenSSH);
 my $supplant;
 my $session_id = 1;
 
-our %DEFAULTS = ( session    => [protocol => 2],
+our %DEFAULTS = ( session    => [protocol => 2,
+                                 strict_host_key_checking => 'no'],
                   connection => [] );
 
 sub import {
@@ -109,6 +110,7 @@ sub login {
     push @more, "Ciphers=$cfg->{ciphers}" if defined $cfg->{ciphers};
     push @more, "Compression=$cfg->{compression}" if defined $cfg->{compression};
     push @more, "CompressionLevel=$cfg->{compression_level}" if defined $cfg->{compression_level};
+    push @more, "StrictHostKeyChecking=$cfg->{strict_host_key_checking}" if defined $cfg->{strict_host_key_checking};
     if ($cfg->{identity_files}) {
         push @more, "IdentityFile=$_" for @{$cfg->{identity_files}};
     }
@@ -183,7 +185,7 @@ sub new {
                                                        privileged identity_files cipher
                                                        ciphers compression
                                                        compression_level use_pty
-                                                       options);
+                                                       options strict_host_key_checking);
 
     %opts and Carp::croak "unsupported configuration option(s) given: ".join(", ", keys %opts);
     $cfg{proto} =~ /\b2\b/ or Carp::croak "Unsupported protocol version requested $cfg{proto}";

@@ -302,7 +302,7 @@ sub tcpip { Carp::croak "method tcpip not implemented" }
 sub listen { Carp::croak "method listen not implemented" }
 
 sub poll {
-    require Net::OpenSSH::Compat::SSH::Poll;
+    require Net::OpenSSH::Compat::SSH2::Poll;
     goto &_poll;
 }
 

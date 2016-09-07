@@ -473,7 +473,7 @@ sub DESTROY {
 sub wait_closed {
     my $chan = shift;
     my $ch = $chan->_hash;
-    shift->close if $ch->{state} eq 'exec';
+    $chan->close if $ch->{state} eq 'exec';
     $ch->{state} eq 'closed';
 }
 
